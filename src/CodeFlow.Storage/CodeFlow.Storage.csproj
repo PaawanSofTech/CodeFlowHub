@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CodeFlow.Storage</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CodeFlow.Core\CodeFlow.Core.csproj" />
+    <ProjectReference Include="..\CodeFlow.Crypto\CodeFlow.Crypto.csproj" />
+    <PackageReference Include="Minio" Version="6.0.5" />
+  </ItemGroup>
+</Project>

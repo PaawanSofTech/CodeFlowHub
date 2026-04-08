@@ -1,0 +1,38 @@
+$source = "C:\Users\paawa\Downloads\codeflow-complete\codeflow-complete"
+$destination = "C:\Users\paawa\Downloads\codeflow-complete\codeflow-complete\CodeFlow.zip"
+
+$excludePatterns = @(
+    "\\bin\\",
+    "\\obj\\",
+    "\\Debug\\",
+    "\\Release\\",
+    "\\.vs\\",
+    "\\node_modules\\",
+    "\\.git\\"
+    "\\.codeflow\\"
+)
+
+$temp = Join-Path $env:TEMP "CodeFlow_Clean"
+
+# Clean temp if exists
+Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
+
+# Copy only required files while preserving structure
+Get-ChildItem $source -Recurse | Where-Object {
+    $path = $_.FullName
+    -not ($excludePatterns | ForEach-Object { $path -match $_ } | Where-Object { $_ })
+} | ForEach-Object {
+    $targetPath = $_.FullName.Replace($source, $temp)
+    if ($_.PSIsContainer) {
+        New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+    } else {
+        New-Item -ItemType Directory -Path (Split-Path $targetPath) -Force | Out-Null
+        Copy-Item $_.FullName -Destination $targetPath -Force
+    }
+}
+
+# Zip the clean structure
+Compress-Archive -Path "$temp\*" -DestinationPath $destination -Force
+
+# Cleanup temp
+Remove-Item $temp -Recurse -Force

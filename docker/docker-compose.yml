@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  # ─── MinIO object storage ──────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: codeflow-minio
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-codeflow}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-codeflow123}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ─── .NET API ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: codeflow-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - repos_data:/app/data/repos
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Jwt__Key=${JWT_KEY:-CODEFLOW_CHANGE_THIS_KEY_IN_PRODUCTION_AT_LEAST_32_BYTES}
+      - Jwt__Issuer=CodeFlow
+      - Repos__Root=/app/data/repos
+      - Cors__Origins=http://localhost:3000,http://localhost:5173
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ─── React Web App (Nginx) ─────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: codeflow-web
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  minio_data:
+  repos_data:
+
+networks:
+  default:
+    name: codeflow-network

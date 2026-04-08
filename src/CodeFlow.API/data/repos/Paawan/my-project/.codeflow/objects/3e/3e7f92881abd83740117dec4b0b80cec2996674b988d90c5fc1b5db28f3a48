@@ -1,0 +1,48 @@
+
+#include <stdio.h>
+#include <string.h>
+#include <string>
+#include <bits/stdc++.h>
+using namespace std;
+
+int moneyConversion(string input1)
+{
+    long long MOD = 10000007;
+    
+    for(char &c : input1) c = toupper(c);
+    
+    long long val = 0;
+    char currency = 0;
+    
+    string s1 = "";
+    string s2 = "";
+    
+    for(char c : input1) {
+        if(isdigit(c)) s1 += c;
+        else if(isalpha(c)) s2 += c;
+    }
+    
+    if(!s1.empty()) val = stoll(s1);
+    if(!s2.empty()) currency = s2[0];
+    
+    long long rate = 0;
+    if(currency == 'Y') rate = 10;
+    else if(currency == 'P') rate = 100;
+    else if(currency == 'D') rate = 70;
+    else if(currency == 'R') rate = 1;
+    
+    long long res = (val % MOD * rate) % MOD;
+    
+    return (int)res;
+    //
+}
+
+int main()
+{
+    string input;
+    getline(cin, input);
+
+    cout << moneyConversion(input);
+
+    return 0;
+}

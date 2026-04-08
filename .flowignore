@@ -1,0 +1,34 @@
+# CodeFlow ignore rules
+.codeflow/
+.git/
+
+# Build outputs
+bin/
+obj/
+dist/
+out/
+
+# Dependencies
+node_modules/
+
+# IDE
+.vs/
+.vscode/
+*.user
+.idea/
+
+# Environment
+.env
+*.env.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Certificates
+*.pfx
+*.pem
+*.key

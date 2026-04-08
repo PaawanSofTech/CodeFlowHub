@@ -1,0 +1,40 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+string validotp(string input1)
+{
+    int n = input1.size();
+    long long count = 0;
+
+    for (int k = 1; k < n / 2; k++)
+    {
+        count += 9 * pow(10, k - 1);
+    }
+
+    if (n % 2 == 0)
+    {
+        int k = n / 2;
+
+        string prefix = input1.substr(0, k);
+        string candidate = prefix + prefix;
+
+        long long prefixNum = stoll(prefix);
+        long long start = pow(10, k - 1);
+
+        if (candidate <= input1)
+            count += (prefixNum - start + 1);
+        else
+            count += (prefixNum - start);
+    }
+
+    return to_string(count);
+}
+
+int main()
+{
+    string input1;
+    cin >> input1;
+
+    cout << validotp(input1);
+    return 0;
+}
