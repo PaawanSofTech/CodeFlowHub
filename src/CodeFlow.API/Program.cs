@@ -9,13 +9,15 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // ─── Configuration ───────────────────────────────────────────────────────────
-// Accept key from env var Jwt__Key (Railway) or appsettings Jwt:Key.
-// If missing or too short, generate a stable random key for this process lifetime
-// (tokens won't survive restarts, but the app won't crash on first boot).
+// Railway injects env vars - try both naming conventions
 var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    jwtKey = Environment.GetEnvironmentVariable("Jwt__Key");
+if (string.IsNullOrWhiteSpace(jwtKey))
+    jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 {
-    // Warn loudly but don't crash — set Jwt__Key in Railway variables for production
     Console.WriteLine("WARNING: Jwt:Key is missing or too short. Set the Jwt__Key environment variable in Railway.");
     jwtKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
 }
