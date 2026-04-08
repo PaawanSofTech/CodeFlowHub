@@ -1,8 +1,0 @@
-# CodeFlow ignore file
-.codeflow/
-.git/
-*.tmp
-*.log
-bin/
-obj/
-node_modules/
