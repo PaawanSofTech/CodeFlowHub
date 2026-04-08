@@ -1,0 +1,24 @@
+## Build artifacts
+src/**/bin/
+src/**/obj/
+CodeFlow_web/node_modules/
+web/node_modules/
+CodeFlow_web/dist/
+web/dist/
+
+## Local repo data
+dev2-repo/
+my-project/
+test-repo/
+
+## Secrets / local config
+.env
+src/**/*.user
+src/**/*.suo
+.vs/
+
+## Packages
+src/**/*.nupkg
+
+## Zip
+CodeFlow.zip

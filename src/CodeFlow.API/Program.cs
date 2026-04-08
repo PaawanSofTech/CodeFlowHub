@@ -65,13 +65,28 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddCors(opt =>
 {
-    opt.AddDefaultPolicy(p => p
-        .WithOrigins(
-            builder.Configuration["Cors:Origins"]?.Split(',') ?? new[] { "http://localhost:5173", "http://localhost:3000" }
-        )
-        .AllowAnyMethod()
-        .AllowAnyHeader()
-        .AllowCredentials());
+    var originsRaw = builder.Configuration["Cors:Origins"];
+    if (!string.IsNullOrWhiteSpace(originsRaw))
+    {
+        // Explicit origins configured (local dev or specific domain) — allow credentials
+        var origins = originsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        opt.AddDefaultPolicy(p => p
+            .WithOrigins(origins)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());
+    }
+    else
+    {
+        // No origins configured (Railway / production single-service) —
+        // allow any origin so the CLI can reach the API from anywhere.
+        // AllowCredentials() is incompatible with AllowAnyOrigin(), which is fine
+        // because the browser web app is same-origin and doesn't need CORS at all.
+        opt.AddDefaultPolicy(p => p
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+    }
 });
 
 // DI services
@@ -85,6 +100,12 @@ var app = builder.Build();
 // ─── Middleware pipeline ──────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "CodeFlow API v2"); c.RoutePrefix = "api/docs"; });
+}
+else
+{
+    // Also expose docs in production (behind the same host — no extra risk)
     app.UseSwagger();
     app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "CodeFlow API v2"); c.RoutePrefix = "api/docs"; });
 }

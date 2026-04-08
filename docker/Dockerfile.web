@@ -2,15 +2,15 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-COPY web/package*.json ./
+COPY CodeFlow_web/package*.json ./
 RUN npm ci
 
-COPY web/ ./
+COPY CodeFlow_web/ ./
 
 ARG VITE_API_URL=http://localhost:5000
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build output to dist/ (not the API's wwwroot in docker context)
+# Build output to dist/
 RUN npm run build -- --outDir dist
 
 # ── Nginx stage ────────────────────────────────────────────────────────────────

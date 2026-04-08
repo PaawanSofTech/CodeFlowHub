@@ -24,7 +24,7 @@ services:
   # ─── .NET API ──────────────────────────────────────────────────────────────
   api:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.api
     container_name: codeflow-api
     ports:
@@ -51,13 +51,15 @@ services:
   # ─── React Web App (Nginx) ─────────────────────────────────────────────────
   web:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.web
+      args:
+        # Baked into the JS bundle at build time — must be the URL the
+        # browser uses to reach the API (not the internal Docker hostname).
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
     container_name: codeflow-web
     ports:
       - "3000:80"
-    environment:
-      - VITE_API_URL=http://localhost:5000
     depends_on:
       - api
     restart: unless-stopped
