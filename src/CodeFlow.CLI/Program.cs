@@ -1039,24 +1039,97 @@ async Task<int> CmdPull(string[] args)
 
 async Task<int> CmdClone(string[] args)
 {
-    if (args.Length < 2) { Out.Error("Usage: codeflow clone <remote-name-config> <url> <bucket> <access> <secret> [dir]"); return 1; }
-    // Simplified: init + remote add + pull
-    var url = args[0]; var bucket = args[1];
-    var access = args.Length > 2 ? args[2] : "";
-    var secret = args.Length > 3 ? args[3] : "";
-    var dir = args.Length > 4 ? args[4] : Path.GetFileNameWithoutExtension(bucket);
+    if (args.Length == 0) { Out.Error("Usage:\n  HTTP:  codeflow clone <api-url> <owner/repo> [dir]\n  MinIO: codeflow clone <minio-url> <bucket> <access> <secret> [dir]"); return 1; }
 
-    Directory.CreateDirectory(dir);
-    RepositoryEngine.InitRepo(dir);
-    var cfg = RepoConfig.Load(dir);
-    cfg.AddOrUpdate(new RemoteConfig { Name = "origin", Url = url, Bucket = bucket, AccessKey = access, SecretKey = secret });
-    cfg.Save(dir);
+    var firstArg = args[0];
+    bool isHttp = firstArg.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+               || firstArg.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-    var prev = Directory.GetCurrentDirectory();
-    Directory.SetCurrentDirectory(dir);
+    // ── HTTP clone: codeflow clone https://api.onrender.com Alice/my-project [dir] ──
+    if (isHttp && args.Length >= 2 && args[1].Contains('/'))
+    {
+        var apiUrl  = firstArg.TrimEnd('/');
+        var ownerRepo = args[1];          // e.g. "Alice/my-project"
+        var parts   = ownerRepo.Split('/', 2);
+        if (parts.Length != 2) { Out.Error("Specify owner/repo, e.g. Alice/my-project"); return 1; }
+        var owner   = parts[0];
+        var repo    = parts[1];
+        var dir     = args.Length > 2 ? args[2] : repo;
+
+        Directory.CreateDirectory(dir);
+        RepositoryEngine.InitRepo(dir);
+
+        // Store the HTTP remote so CmdPull can use it
+        var cfg = RepoConfig.Load(dir);
+
+        // Authenticate to get a JWT token (reuse add-http login flow)
+        string jwt = "";
+        Out.Info("Authentication required to clone from HTTP remote.");
+        var tokenFile = Path.Combine(dir, ".codeflow", "token");
+
+        using var http = new System.Net.Http.HttpClient();
+        // Try challenge-less login (public key login used by CLI)
+        Out.Spinner("Authenticating...", () =>
+        {
+            // Read key pair if already generated in the new dir — otherwise ask user to keygen first
+            var keyDir = Path.Combine(dir, ".codeflow", "keys");
+            if (!File.Exists(Path.Combine(keyDir, "public.key")))
+            {
+                // Temporarily cd into the new dir so GenerateAndSaveKeyPair writes keys there
+                var tmpPrev = Directory.GetCurrentDirectory();
+                Directory.SetCurrentDirectory(dir);
+                KeyManager.GenerateAndSaveKeyPair();
+                Directory.SetCurrentDirectory(tmpPrev);
+            }
+            var pubBytes = File.ReadAllBytes(Path.Combine(keyDir, "public.key"));
+            var pubB64 = Convert.ToBase64String(pubBytes);
+
+            var loginBody = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(new { publicKeyBase64 = pubB64, signedChallenge = "", username = owner, email = $"{owner.ToLower()}@codeflow" }),
+                Encoding.UTF8, "application/json");
+            var resp = http.PostAsync($"{apiUrl}/api/auth/login", loginBody).GetAwaiter().GetResult();
+            if (resp.IsSuccessStatusCode)
+            {
+                var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                var doc = System.Text.Json.JsonDocument.Parse(body);
+                jwt = doc.RootElement.TryGetProperty("token", out var t) ? t.GetString() ?? "" : "";
+                if (!string.IsNullOrEmpty(jwt))
+                    File.WriteAllText(tokenFile, jwt);
+            }
+        });
+
+        cfg.AddOrUpdate(new RemoteConfig { Name = "origin", Type = "http", Url = apiUrl, Repo = owner, AccessKey = jwt });
+        cfg.Save(dir);
+
+        var prev = Directory.GetCurrentDirectory();
+        Directory.SetCurrentDirectory(dir);
+        var result = await CmdPull(new[] { "origin" });
+        Directory.SetCurrentDirectory(prev);
+
+        if (result == 0)
+            Out.Success($"Cloned into '{dir}'");
+        return result;
+    }
+
+    // ── MinIO clone: codeflow clone <url> <bucket> <access> <secret> [dir] ──
+    if (args.Length < 2) { Out.Error("Usage: codeflow clone <minio-url> <bucket> <access> <secret> [dir]"); return 1; }
+    var mUrl    = args[0];
+    var bucket  = args[1];
+    var access  = args.Length > 2 ? args[2] : "";
+    var secret  = args.Length > 3 ? args[3] : "";
+    var mDir    = args.Length > 4 ? args[4] : Path.GetFileNameWithoutExtension(bucket);
+
+    Directory.CreateDirectory(mDir);
+    RepositoryEngine.InitRepo(mDir);
+    var mcfg = RepoConfig.Load(mDir);
+    mcfg.AddOrUpdate(new RemoteConfig { Name = "origin", Url = mUrl, Bucket = bucket, AccessKey = access, SecretKey = secret });
+    mcfg.Save(mDir);
+
+    var mprev = Directory.GetCurrentDirectory();
+    Directory.SetCurrentDirectory(mDir);
     await CmdPull(new[] { "origin" });
-    Directory.SetCurrentDirectory(prev);
-    Out.Success($"Cloned into '{dir}'");
+    Directory.SetCurrentDirectory(mprev);
+    Out.Success($"Cloned into '{mDir}'");
     return 0;
 }
 
@@ -1185,7 +1258,7 @@ int PrintHelp(string? unknown = null)
         "  [green]remote[/]      Manage remotes (add, add-http, remove)\n" +
         "  [green]push[/]        Push to remote (differential)\n" +
         "  [green]pull[/]        Pull from remote\n" +
-        "  [green]clone[/]       Clone a repository\n\n" +
+        "  [green]clone[/]       Clone: HTTP: <api-url> <owner/repo> [dir]  |  MinIO: <url> <bucket> <key> <secret> [dir]\n\n" +
         "[bold]Maintenance:[/]\n" +
         "  [green]gc[/]          Garbage collection\n" +
         "  [green]serve[/]       Start web UI server\n\n" +
