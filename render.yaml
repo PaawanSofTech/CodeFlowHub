@@ -14,7 +14,3 @@ services:
         generateValue: true
       - key: Cors__Origins
         value: https://codeflow-hub.vercel.app
-    disk:
-      name: repos-data
-      mountPath: /app/data/repos
-      sizeGB: 1
