@@ -81,6 +81,7 @@ builder.Services.AddCors(opt =>
         .ToList();
 
     // Always allow Vercel preview and production domains
+    origins.Add("https://code-flow-hub.vercel.app");
     origins.Add("https://codeflow-hub.vercel.app");
     origins.Add("http://localhost:5173");
     origins.Add("http://localhost:3000");

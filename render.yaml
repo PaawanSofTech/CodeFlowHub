@@ -13,4 +13,4 @@ services:
       - key: Jwt__Key
         generateValue: true
       - key: Cors__Origins
-        value: https://codeflow-hub.vercel.app
+        value: https://code-flow-hub.vercel.app
