@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: codeflow-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Repos__Root
+        value: /app/data/repos
+      - key: Jwt__Key
+        generateValue: true
+      - key: Cors__Origins
+        value: https://codeflow-hub.vercel.app
+    disk:
+      name: repos-data
+      mountPath: /app/data/repos
+      sizeGB: 1

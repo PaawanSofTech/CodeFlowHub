@@ -10,5 +10,5 @@ export default defineConfig({
       '/hubs': { target: 'http://localhost:5000', ws: true, changeOrigin: true },
     },
   },
-  build: { outDir: '../src/CodeFlow.API/wwwroot', emptyOutDir: true },
+  build: { outDir: 'dist', emptyOutDir: true },
 })

@@ -76,27 +76,21 @@ builder.Services.AddAuthorization();
 builder.Services.AddCors(opt =>
 {
     var originsRaw = builder.Configuration["Cors:Origins"];
-    if (!string.IsNullOrWhiteSpace(originsRaw))
-    {
-        // Explicit origins configured (local dev or specific domain) — allow credentials
-        var origins = originsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        opt.AddDefaultPolicy(p => p
-            .WithOrigins(origins)
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials());
-    }
-    else
-    {
-        // No origins configured (Railway / production single-service) —
-        // allow any origin so the CLI can reach the API from anywhere.
-        // AllowCredentials() is incompatible with AllowAnyOrigin(), which is fine
-        // because the browser web app is same-origin and doesn't need CORS at all.
-        opt.AddDefaultPolicy(p => p
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
-    }
+    var origins = (originsRaw ?? "")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .ToList();
+
+    // Always allow Vercel preview and production domains
+    origins.Add("https://codeflow-hub.vercel.app");
+    origins.Add("http://localhost:5173");
+    origins.Add("http://localhost:3000");
+
+    opt.AddDefaultPolicy(p => p
+        .WithOrigins(origins.ToArray())
+        .SetIsOriginAllowedToAllowWildcardSubdomains()  // allows *.vercel.app previews
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
 });
 
 // DI services
