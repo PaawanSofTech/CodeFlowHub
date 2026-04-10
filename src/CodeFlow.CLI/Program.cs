@@ -591,6 +591,35 @@ string PadBase64(string input)
 {
     return input.PadRight(input.Length + (4 - input.Length % 4) % 4, '=');
 }
+
+bool LooksLikeCodeFlowApi(string? url)
+{
+    if (string.IsNullOrWhiteSpace(url)) return false;
+    if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+        && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        return false;
+
+    try
+    {
+        using var http = new System.Net.Http.HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(3)
+        };
+        var healthUrl = $"{url.TrimEnd('/')}/health";
+        var resp = http.GetAsync(healthUrl).GetAwaiter().GetResult();
+        if (!resp.IsSuccessStatusCode) return false;
+
+        var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        using var doc = JsonDocument.Parse(body);
+        return doc.RootElement.TryGetProperty("status", out _)
+            && doc.RootElement.TryGetProperty("version", out _);
+    }
+    catch
+    {
+        return false;
+    }
+}
+
 int CmdRemote(string[] args)
 {
     var engine = GetEngine();
@@ -657,6 +686,14 @@ int CmdRemote(string[] args)
     {
         // Usage: remote add <n> <url> <bucket> [access-key] [secret-key]
         if (args.Length < 4) { Out.Error("Usage: remote add <n> <url> <bucket> [access-key] [secret-key]"); return 1; }
+        if (LooksLikeCodeFlowApi(args[2]))
+        {
+            Out.Error(
+                "The URL appears to be a CodeFlow HTTP API endpoint. " +
+                "Use: codeflow remote add-http <name> <api-url>");
+            return 1;
+        }
+
         var rc = new RemoteConfig
         {
             Name = args[1],
@@ -771,10 +808,13 @@ async Task<int> CmdPush(string[] args)
         }
 
         // 3. Push ALL branch refs (including HEAD)
-        var branches = engine.Store.GetAllBranches();
+        var branches = engine.Store.GetAllBranches().ToList();
         var currentBranch = engine.Store.GetCurrentBranch();
+        var orderedBranches = branches
+            .OrderBy(b => string.Equals(b, currentBranch, StringComparison.Ordinal) ? 1 : 0)
+            .ToList();
 
-        foreach (var b in branches)
+        foreach (var b in orderedBranches)
         {
             var tip = engine.Store.GetBranchTip(b);
             if (tip == null) continue;
@@ -810,6 +850,13 @@ async Task<int> CmdPush(string[] args)
     }
 
     // ── S3 / MinIO push ───────────────────────────────────────────────────────
+    if (LooksLikeCodeFlowApi(remote.Url))
+    {
+        throw new InvalidOperationException(
+            "Remote looks like a CodeFlow HTTP API endpoint but is configured as S3/MinIO. " +
+            "Use 'codeflow remote add-http <name> <api-url>' and then 'codeflow push <name>'.");
+    }
+
     if (remote.AccessKey == null || remote.SecretKey == null)
         throw new InvalidOperationException("Remote has no credentials.");
 
