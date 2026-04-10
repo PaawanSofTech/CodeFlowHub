@@ -491,10 +491,15 @@ namespace CodeFlow.API.Controllers
             if (req.Branch != null)
             {
                 engine.Store.SetBranchTip(req.Branch, req.Hash);
+                // Keep HEAD symbolic when a branch is provided so clones/pulls can
+                // discover the active branch instead of ending up with branch=null.
+                engine.Store.SetHeadToBranch(req.Branch);
             }
-
-            // Always update HEAD
-            engine.Store.UpdateHead(req.Hash);
+            else
+            {
+                // Detached update fallback (explicit hash without branch context).
+                engine.Store.UpdateHead(req.Hash);
+            }
             return Ok(new { head = req.Hash });
         }
 
