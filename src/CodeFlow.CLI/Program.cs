@@ -850,7 +850,10 @@ async Task<int> CmdPush(string[] args)
     }
 
     // ── S3 / MinIO push ───────────────────────────────────────────────────────
-    if (LooksLikeCodeFlowApi(remote.Url))
+
+    if (remote.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+        && remote.Url.Contains("codeflow-api", StringComparison.OrdinalIgnoreCase))
+
     {
         throw new InvalidOperationException(
             "Remote looks like a CodeFlow HTTP API endpoint but is configured as S3/MinIO. " +
