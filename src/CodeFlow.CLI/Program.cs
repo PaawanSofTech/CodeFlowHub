@@ -878,6 +878,11 @@ async Task<int> CmdPull(string[] args)
 
         // 1. Fetch remote HEAD + branch
         var headResp = await http.GetAsync($"{baseUrl}/api/repos/{owner}/{repoName}/objects/head");
+        if (headResp.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Out.Error($"Repository '{owner}/{repoName}' not found on server. Push to it first:\n  codeflow remote add-http api {baseUrl}\n  codeflow push api");
+            return 1;
+        }
         if (!headResp.IsSuccessStatusCode)
         {
             Out.Error($"Could not fetch remote HEAD: {headResp.StatusCode}");

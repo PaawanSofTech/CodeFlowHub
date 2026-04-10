@@ -443,6 +443,7 @@ namespace CodeFlow.API.Controllers
         [HttpHead("{hash}")]
         public IActionResult HasObject(string owner, string name, string hash)
         {
+            if (!_svc.RepoExists(owner, name)) return NotFound();
             var engine = _svc.GetEngine(owner, name);
             return engine.Store.HasObject(hash) ? Ok() : NotFound();
         }
@@ -450,6 +451,7 @@ namespace CodeFlow.API.Controllers
         [HttpGet("{hash}")]
         public IActionResult GetObject(string owner, string name, string hash)
         {
+            if (!_svc.RepoExists(owner, name)) return NotFound();
             var engine = _svc.GetEngine(owner, name);
             var data = engine.Store.GetRawObject(hash);
             if (data == null) return NotFound();
@@ -460,6 +462,9 @@ namespace CodeFlow.API.Controllers
         [Authorize]
         public async Task<IActionResult> UploadObject(string owner, string name, string hash)
         {
+            // Auto-create repo on first push if it doesn't exist yet
+            if (!_svc.RepoExists(owner, name))
+                _svc.CreateRepo(owner, name);
             var engine = _svc.GetEngine(owner, name);
             if (engine.Store.HasObject(hash)) return Ok(new { skipped = true });
             using var ms = new MemoryStream();
@@ -471,6 +476,8 @@ namespace CodeFlow.API.Controllers
         [HttpGet("head")]
         public IActionResult GetHead(string owner, string name)
         {
+            if (!_svc.RepoExists(owner, name))
+                return NotFound(new { error = $"Repository '{owner}/{name}' not found." });
             var engine = _svc.GetEngine(owner, name);
             return Ok(new { head = engine.Store.ReadHead(), branch = engine.Store.GetCurrentBranch() });
         }
