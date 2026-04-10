@@ -132,6 +132,9 @@ codeflow commit -m "Add authentication"
 codeflow checkout main
 codeflow merge feature/auth
 
+codeflow remote add-http api https://codeflow-api-qbd9.onrender.com
+codeflow push api
+
 # Remote push (requires MinIO)
 codeflow remote add origin http://localhost:9000 my-bucket codeflow codeflow123
 codeflow push origin
