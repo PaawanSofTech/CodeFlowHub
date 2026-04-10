@@ -12,8 +12,15 @@ namespace CodeFlow.Core
         public string Name { get; set; } = "origin";
         public string Type { get; set; } = "cfs";      // cfs | s3 | http
         public string Url { get; set; } = "";
-        public string Repo { get; set; } = "";
+        public string Repo { get; set; } = "";          // owner name
         public string Bucket { get; set; } = "";
+        /// <summary>
+        /// The remote repository name (e.g. "my-project"). Stored separately from the
+        /// local clone directory so that CmdPull can address the correct server repo
+        /// even when the local folder was given a different name during clone.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? RemoteRepoName { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? AccessKey { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -75,6 +82,7 @@ namespace CodeFlow.Core
                 existing.Type = rc.Type;
                 existing.Url = rc.Url;
                 existing.Repo = rc.Repo;
+                existing.RemoteRepoName = rc.RemoteRepoName;
                 existing.Bucket = rc.Bucket;
                 existing.AccessKey = rc.AccessKey;
                 existing.SecretKey = rc.SecretKey;

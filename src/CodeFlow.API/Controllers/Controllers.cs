@@ -490,10 +490,15 @@ namespace CodeFlow.API.Controllers
             if (!engine.Store.HasObject(req.Hash)) return BadRequest("Commit not found in store.");
             if (req.Branch != null)
             {
+                // Always update the branch tip so all pushed branches are tracked.
                 engine.Store.SetBranchTip(req.Branch, req.Hash);
-                // Keep HEAD symbolic when a branch is provided so clones/pulls can
-                // discover the active branch instead of ending up with branch=null.
-                engine.Store.SetHeadToBranch(req.Branch);
+
+                // Only move the symbolic HEAD pointer when the caller explicitly says this
+                // is the current/active branch. Non-current branches must NOT overwrite HEAD
+                // or a subsequent push of the current branch (which arrives last) gets undone
+                // when a non-current branch push arrives after it (race or ordering issue).
+                if (req.UpdateHead == true)
+                    engine.Store.SetHeadToBranch(req.Branch);
             }
             else
             {
@@ -503,7 +508,7 @@ namespace CodeFlow.API.Controllers
             return Ok(new { head = req.Hash });
         }
 
-        public record SetHeadRequest(string Hash, string? Branch = null);
+        public record SetHeadRequest(string Hash, string? Branch = null, bool? UpdateHead = null);
 
         [HttpGet("list")]
         public IActionResult ListObjects(string owner, string name)

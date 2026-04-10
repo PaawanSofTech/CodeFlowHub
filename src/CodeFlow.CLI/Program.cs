@@ -808,19 +808,20 @@ async Task<int> CmdPush(string[] args)
         }
 
         // 3. Push ALL branch refs (including HEAD)
+        // Pass updateHead=true only for the current branch so the server's symbolic HEAD
+        // always points at the right branch regardless of iteration order.
         var branches = engine.Store.GetAllBranches().ToList();
         var currentBranch = engine.Store.GetCurrentBranch();
-        var orderedBranches = branches
-            .OrderBy(b => string.Equals(b, currentBranch, StringComparison.Ordinal) ? 1 : 0)
-            .ToList();
 
-        foreach (var b in orderedBranches)
+        foreach (var b in branches)
         {
             var tip = engine.Store.GetBranchTip(b);
             if (tip == null) continue;
 
+            bool isCurrent = string.Equals(b, currentBranch, StringComparison.Ordinal);
+
             var payload = new StringContent(
-                System.Text.Json.JsonSerializer.Serialize(new { hash = tip, branch = b }),
+                System.Text.Json.JsonSerializer.Serialize(new { hash = tip, branch = b, updateHead = isCurrent }),
                 Encoding.UTF8,
                 "application/json"
             );
@@ -832,7 +833,7 @@ async Task<int> CmdPush(string[] args)
 
             if (resp.IsSuccessStatusCode)
             {
-                if (b == currentBranch)
+                if (isCurrent)
                     Out.Dim($"  HEAD → {b} ({tip[..8]})");
                 else
                     Out.Dim($"  branch → {b} ({tip[..8]})");
@@ -918,7 +919,12 @@ async Task<int> CmdPull(string[] args)
             throw new InvalidOperationException("HTTP remote requires a JWT token. Run 'codeflow remote add-http' to re-authenticate.");
 
         var owner = remote.Repo;
-        var repoName = Path.GetFileName(engine.RepoRoot);
+        // Use the stored remote repo name if available (set during clone when the local
+        // directory name differs from the actual server repo name). Falls back to the
+        // local directory name so plain push/pull works when folder name matches server.
+        var repoName = !string.IsNullOrEmpty(remote.RemoteRepoName)
+            ? remote.RemoteRepoName
+            : Path.GetFileName(engine.RepoRoot);
         var baseUrl = remote.Url;
         var jwt = remote.AccessKey!;
 
@@ -1153,7 +1159,7 @@ async Task<int> CmdClone(string[] args)
             }
         });
 
-        cfg.AddOrUpdate(new RemoteConfig { Name = "origin", Type = "http", Url = apiUrl, Repo = owner, AccessKey = jwt });
+        cfg.AddOrUpdate(new RemoteConfig { Name = "origin", Type = "http", Url = apiUrl, Repo = owner, RemoteRepoName = repo, AccessKey = jwt });
         cfg.Save(dir);
 
         var prev = Directory.GetCurrentDirectory();
