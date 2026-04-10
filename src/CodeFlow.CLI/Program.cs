@@ -1319,7 +1319,7 @@ int PrintHelp(string? unknown = null)
         "  [green]remote[/]      Manage remotes (add, add-http, remove)\n" +
         "  [green]push[/]        Push to remote (differential)\n" +
         "  [green]pull[/]        Pull from remote\n" +
-        "  [green]clone[/]       Clone: HTTP: <api-url> <owner/repo> [dir]  |  MinIO: <url> <bucket> <key> <secret> [dir]\n\n" +
+        "  [green]clone[/]       Clone: HTTP: <api-url> <owner/repo> [[dir]]  |  MinIO: <url> <bucket> <key> <secret> [[dir]]\n\n" +
         "[bold]Maintenance:[/]\n" +
         "  [green]gc[/]          Garbage collection\n" +
         "  [green]serve[/]       Start web UI server\n\n" +
